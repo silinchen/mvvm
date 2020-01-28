@@ -6,9 +6,6 @@ function initState(vm) {
     observe(vm._data = {}, true)
   }
   if (opts.computed) initComputed(vm, opts.computed)
-  // if (opts.watch && opts.watch !== nativeWatch) {
-  //   initWatch(vm, opts.watch)
-  // }
 }
 
 function initData(vm) {

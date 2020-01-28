@@ -15,12 +15,14 @@
 
 <body>
   <div id="app">
-    <p>Original message: {{ message }}</p>
+    <p>foo.bar: {{ foo.bar }}</p>
+    <p>原始 message: {{ message }}</p>
     <p>Computed reversed message: "{{ reversedMessage }}"</p>
     <button v-on:click="reverseMessage">反转消息</button>
     <input v-model="message">
     <p>v-text: <span v-text="message"></span></p>
     <p>v-html: <span v-html="html"></span></p>
+    <p>watch message: <span id="watch">old: ，new: </span></p>
   </div>
 
   <script>
@@ -28,7 +30,10 @@
       el: '#app',
       data: {
         message: 'Hello, MVVM',
-        html: '<u>我是一条html<u>'
+        html: '<u>我是一条html<u>',
+        foo: {
+          bar: '我是 foo bar'
+        }
       },
 
       computed: {
@@ -46,9 +51,9 @@
       }
     });
 
-    // vm.$watch('child.someStr', function() {
-    //     console.log(arguments);
-    // });
+    vm.$watch('message', function(newVal, oldVal) {
+      document.getElementById('watch').innerText = `old message: ${oldVal}，new message: ${newVal}`
+    });
   </script>
 </body>
 

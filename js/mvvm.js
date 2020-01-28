@@ -10,3 +10,6 @@ function MVVM(options) {
 
     this.$compile = new Compile(options.el || document.body, this)
 }
+MVVM.prototype.$watch = function(key, cb) {
+    new Watcher(this, key, cb);
+}
