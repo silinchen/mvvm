@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>MVVM</title>
+  <script src="./js/state.js"></script>
+  <script src="./js/observer.js"></script>
+  <script src="./js/watcher.js"></script>
+  <script src="./js/compile.js"></script>
+  <script src="./js/mvvm.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <p>Original message: {{ message }}</p>
+    <p>Computed reversed message: "{{ reversedMessage }}"</p>
+    <button v-on:click="reverseMessage">反转消息</button>
+    <input v-model="message">
+    <p>v-text: <span v-text="message"></span></p>
+    <p>v-html: <span v-html="html"></span></p>
+  </div>
+
+  <script>
+    var vm = new MVVM({
+      el: '#app',
+      data: {
+        message: 'Hello, MVVM',
+        html: '<u>我是一条html<u>'
+      },
+
+      computed: {
+        // 计算属性的 getter
+        reversedMessage: function () {
+          // `this` 指向 vm 实例
+          return this.message.split('').reverse().join('')
+        }
+      },
+
+      methods: {
+        reverseMessage: function () {
+          this.message = this.message.split('').reverse().join('')
+        }
+      }
+    });
+
+    // vm.$watch('child.someStr', function() {
+    //     console.log(arguments);
+    // });
+  </script>
+</body>
+
+</html>
