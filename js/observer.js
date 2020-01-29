@@ -1,3 +1,5 @@
+// Vue 通过数据劫持+发布订阅模式，实现双向数据绑定
+// 通过 Object.defaineProperty 实现数据劫持，不兼容 IE8 及以下浏览器
 function observe(value) {
   if (!isObject(value)) {
     return
@@ -13,11 +15,13 @@ class Observer {
   }
   walk (obj) {
     const keys = Object.keys(obj)
+    // 循环遍历 data，创建响应式对象
     for (let i = 0; i < keys.length; i++) {
       defineReactive(obj, keys[i])
     }
   }
 }
+// 核心实现
 function defineReactive (obj, key, val) {
   const dep = new Dep()
 
@@ -79,10 +83,6 @@ class Dep {
 
   addSub (sub) {
     this.subs.push(sub)
-  }
-
-  removeSub (sub) {
-    remove(this.subs, sub)
   }
 
   depend () {

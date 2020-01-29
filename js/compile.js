@@ -1,5 +1,5 @@
 /**
- * 这里到 Compile 只是简单到模版编译
+ * 这里的 Compile 只是简单的模版编译
  * 与 Vue 实际Compile 有较大区别，实际的 Compile 实现比较复杂，
  * 需要经过 parse、optimize、generate 三个阶段处理
  * parse: 使用正则解析template中的vue的指令(v-xxx) 变量等等 形成抽象语法树AST
@@ -107,7 +107,7 @@ Compile.prototype = {
 };
 
 // 指令处理集合
-var compileUtil = {
+const compileUtil = {
   text: function (node, vm, exp) {
     this.update(node, vm, exp, 'text');
   },
@@ -176,7 +176,7 @@ var compileUtil = {
   }
 };
 
-var updater = {
+const updater = {
   textUpdater: function (node, value) {
     node.textContent = typeof value == 'undefined' ? '' : value;
   },
