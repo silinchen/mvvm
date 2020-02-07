@@ -35,10 +35,15 @@ Object.defineProperty(obj, 'vue', {
 ```
 
 **configurable**: 指定属性是否可以配置，如果不设置为true，则无法删除该属性，例如：delete obj.vue='react'无效
+
 **writable**:  指定属性是否能被赋值运算符改变，如果不设置为true，则给 vue 属性赋值，例如：obj.vue='react'无效
+
 **enmerbale**: 指定属性是否可以被枚举到，如果不设置为true，使用 for...in... 或 Object.keys 是读不到该属性的
+
 **value**:  指定属性对应的值，与 get 属性冲突，一起使用会报错
+
 **get**:  访问该属性时，如果有设置 get 方法，会执行这个方法并返回
+
 **set**:  修改该属性值时，如果有设置 set 方法，会执行这个方法，并把新的值作为参数传进入 object.vue = 'hello, Vuex'
 
 ### 3. 流程图
@@ -204,7 +209,7 @@ const updater = {
 
 ### 3. 响应式对象
 
-####initState
+#### initState
 
 `initState` 方法主要是对 `props`、`methods`、`data`、`computed` 和 `wathcer` 等属性做了初始化操作。这里我们主要实现对 `data` 跟 `computed` 的操作。
 
