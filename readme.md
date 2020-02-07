@@ -169,22 +169,7 @@ Compile.prototype = {
       updaterFn && updaterFn(node, text.replace(/\{\{(.*)\}\}/, value));
     });
   },
-
-  isDirective: function (attr) {
-    return attr.indexOf('v-') == 0;
-  },
-
-  isEventDirective: function (dir) {
-    return dir.indexOf('on') === 0;
-  },
-
-  isElementNode: function (node) {
-    return node.nodeType == 1;
-  },
-
-  isTextNode: function (node) {
-    return node.nodeType == 3;
-  }
+  // ... 省略
 };
 ```
 
@@ -196,7 +181,7 @@ const compileUtil = {
   text: function (node, vm, exp) {
     this.update(node, vm, exp, 'text');
   },
-	... // 省略
+	// ... 省略
   update: function (node, vm, exp, dir) {
     // 针对不同的指令使用不同的函数渲染、更新数据。
     const updaterFn = updater[dir + 'Updater'];
@@ -206,14 +191,14 @@ const compileUtil = {
       updaterFn && updaterFn(node, value, oldValue);
     });
   },
- 	... // 省略
+ 	// ... 省略
 };
   
 const updater = {
   textUpdater: function (node, value) {
     node.textContent = typeof value == 'undefined' ? '' : value;
   },
-  ... // 省略
+  // ... 省略
 };
 ```
 
@@ -277,7 +262,7 @@ function initData(vm) {
 
 把每一个值 `vm._data.xxx` 都代理到 `vm.xxx` 上。
 
-这是一个公用的方法。这里我们只是对 data 定义对属性做里代理。实际上 vue 还通过这个方法对 props 也做了代理，`proxy(vm, '_props', key)`
+这是一个公用的方法。这里我们只是对 data 定义对属性做里代理。实际上 vue 还通过这个方法对 props 也做了代理，`proxy(vm, '_props', key)`。
 
 ````javascript
 // 数据代理，proxy(vm, '_data', key)。
@@ -337,12 +322,12 @@ class Observer {
 
 ```javascript
 function defineReactive (obj, key) {
-	// 初始化 Dep，用于依赖收集
+  // 初始化 Dep，用于依赖收集
   const dep = new Dep()
 
   let val = obj[key]
 
-	// 对子对象递归调用 observe 方法，这样就保证了无论 obj 的结构多复杂，
+  // 对子对象递归调用 observe 方法，这样就保证了无论 obj 的结构多复杂，
   // 它的所有子属性也能变成响应式的对象，
   // 这样我们访问或修改 obj 中一个嵌套较深的属性，也能触发 getter 和 setter。
   // 使 foo.bar 等多层的对象也可以实现响应式。
@@ -488,7 +473,7 @@ class Watcher {
 
 
 
-视频地址：
+视频地址：https://pan.baidu.com/s/1xCryx91A6qmWOGQ_opBdTA
 
 扫下方二维码或微信搜索，关注公众号「天才前端计划」，回复“MVVM原理”获取提取码。
 
