@@ -36,7 +36,7 @@ class Watcher {
     }
   }
   update() {
-    // value 是获取当前的值
+    // value 是获取当前的值。
     // this.value 是 watcher 缓存的旧值，
     // 用来与改变后的当前值进行对比，如果前后值没有变化，就不进行更新
     const value = this.get()
