@@ -5,6 +5,8 @@
  * parse: 使用正则解析template中的vue的指令(v-xxx) 变量等等 形成抽象语法树AST
  * optimize: 标记一些静态节点，用作后面的性能优化，在diff的时候直接略过
  * generate: 把第一部生成的AST 转化为渲染函数 render function
+ * 
+ * 这里 Compile 负责数据的渲染与更新。
  */
 function Compile(el, vm) {
   this.$vm = vm;
@@ -31,21 +33,24 @@ Compile.prototype = {
     while (child = el.firstChild) {
       fragment.appendChild(child);
     }
-  
+
     return fragment;
   },
   compile: function (el) {
     const childNodes = el.childNodes
-
+    // childNodes 不是标准数组，通过 Array.from 把 childNodes 转成数组并遍历处理每一个节点。
     Array.from(childNodes).forEach(node => {
+      // 利用闭包机制，保存文本节点最初的文本，后面更新根据最初的文本进行替换更新。
       const text = node.textContent;
-
+      // 元素节点，对元素属性绑定对指令进行处理
       if (this.isElementNode(node)) {
         this.compileElement(node);
-      } else if (this.isTextNode(node) && /\{\{(.*)\}\}/.test(text)) {
-        this.compileText(node, RegExp.$1.trim());
       }
-
+      // 文本节点并且包含 {{xx}} 字符串对文本，模版内容替换
+      else if (this.isTextNode(node) && /\{\{(.*)\}\}/.test(text)) {
+        this.compileText(node, RegExp.$1.trim(), text);
+      }
+      // 递归编译子节点的内容
       if (node.childNodes && node.childNodes.length) {
         this.compile(node);
       }
@@ -57,6 +62,7 @@ Compile.prototype = {
 
     Array.from(nodeAttrs).forEach(attr => {
       const attrName = attr.name;
+      // 判断属性是否是一个指令，例如： v-text 等
       if (this.isDirective(attrName)) {
         const exp = attr.value;
         const dir = attrName.substring(2);
@@ -74,16 +80,20 @@ Compile.prototype = {
     });
   },
 
-  compileText: function (node, exp) {
+  compileText: function (node, exp, text) {
     // compileUtil.text(node, this.$vm, exp);
-    // 利用闭包机制，保存文本节点最初的文本，后面更新根据最初的文本进行替换更新。
     const vm = this.$vm
-    let text = node.textContent
+    // 文本更新的方法
     const updaterFn = updater.textUpdater
-
-    let value = text.replace(/\{\{(.*)\}\}/, compileUtil._getVMVal(vm, exp))
+    // 替换 text 中的 {{xx}} 字符串.
+    // 这里的 text 是通过闭包的机制，保存了最原始的模版字符串，例如：message is :{{message}}。后续更新都会根据这个字符串去替换其中的模版内容。
+    const value = text.replace(/\{\{(.*)\}\}/, compileUtil._getVMVal(vm, exp))
+    // 将替换后的值传给更新函数更新
     updaterFn && updaterFn(node, value);
 
+    // 实例化 Watcher 触发依赖收集。
+    // vm, exp 参数，用来取属性值 vm[exp]
+    // 第三个参数是回调函数，会在派发更新的时候被触发更新文本内容。
     new Watcher(vm, exp, function (value) {
       updaterFn && updaterFn(node, text.replace(/\{\{(.*)\}\}/, value));
     });
@@ -136,7 +146,9 @@ const compileUtil = {
   },
 
   update: function (node, vm, exp, dir) {
+    // 针对不同的指令使用不同的函数渲染、更新数据。
     const updaterFn = updater[dir + 'Updater'];
+    // 这里取值，然后进行初次的内容渲染
     updaterFn && updaterFn(node, this._getVMVal(vm, exp));
     new Watcher(vm, exp, function (value, oldValue) {
       updaterFn && updaterFn(node, value, oldValue);

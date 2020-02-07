@@ -15,54 +15,46 @@ class Observer {
   }
   walk (obj) {
     const keys = Object.keys(obj)
-    // 循环遍历 data，创建响应式对象
+    // 循环遍历，创建响应式对象
     for (let i = 0; i < keys.length; i++) {
       defineReactive(obj, keys[i])
     }
   }
 }
 // 核心实现
-function defineReactive (obj, key, val) {
+function defineReactive (obj, key) {
   const dep = new Dep()
 
-  const property = Object.getOwnPropertyDescriptor(obj, key)
-  if (property && property.configurable === false) {
-    return
-  }
+  let val = obj[key]
 
-  // cater for pre-defined getter/setters
-  const getter = property && property.get
-  const setter = property && property.set
-  if ((!getter || setter) && arguments.length === 2) {
-    val = obj[key]
-  }
-
+  // 对子对象递归调用 observe 方法，这样就保证了无论 obj 的结构多复杂，
+  // 它的所有子属性也能变成响应式的对象，
+  // 这样我们访问或修改 obj 中一个嵌套较深的属性，也能触发 getter 和 setter。
+  // 使 foo.bar 等多层的对象也可以实现响应式。
   let childOb = observe(val)
+
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
     get: function reactiveGetter () {
-      const value = getter ? getter.call(obj) : val
+      // Dep.target 指向 watcher
       if (Dep.target) {
+        // 依赖收集，每个使用到 data 里的值的地方，都会调用一次 get，然后就会被收集到一个数组中。
         dep.depend()
         if (childOb) {
           childOb.dep.depend()
         }
       }
-      return value
+      return val
     },
     set: function reactiveSetter (newVal) {
-      const value = getter ? getter.call(obj) : val
-      if (newVal === value || (newVal !== newVal && value !== value)) {
+      // 当值没有变化时，直接返回
+      if (newVal === val) {
         return
       }
-      // #7981: for accessor properties without setter
-      if (getter && !setter) return
-      if (setter) {
-        setter.call(obj, newVal)
-      } else {
-        val = newVal
-      }
+      // 对 val 设置新的
+      val = newVal
+      // 如果新传入的值时一个对象，需要重新进行 observe，给对象的属性做响应式处理。
       childOb = observe(newVal)
       dep.notify()
     }
@@ -78,6 +70,7 @@ class Dep {
 
   constructor () {
     this.id = uid++
+    // 存放 watcher 的地方
     this.subs = []
   }
 
@@ -90,7 +83,7 @@ class Dep {
       Dep.target.addDep(this)
     }
   }
-
+  // 派发更新
   notify () {
     // stabilize the subscriber list first
     const subs = this.subs.slice()

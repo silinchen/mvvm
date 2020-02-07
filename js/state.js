@@ -1,10 +1,12 @@
 function initState(vm) {
   const opts = vm.$options
+  // 初始化 data
   if (opts.data) {
     initData(vm)
   } else {
     observe(vm._data = {}, true)
   }
+  // 初始化 computed
   if (opts.computed) initComputed(vm, opts.computed)
 }
 
@@ -33,15 +35,19 @@ function initData(vm) {
   // observe data
   observe(data, true)
 }
-// 数据代理
+// 数据代理，proxy(vm, `_data`, key)。这是一个公用的方法。
+// 这里我们只是对 data 定义对属性做里代理。实际上 vue 还通过这个方法对 props 也做了代理，proxy(vm, `_props`, key)。
 function proxy(target, sourceKey, key) {
   Object.defineProperty(target, key, {
     enumerable: true,
     configurable: true,
     get: function proxyGetter() {
+      // initData 里把 vm._data 处理成响应式对象。
+      // 这里返回 this['_data'][key]，实现 vm[key] -> vm._data[key]
       return this[sourceKey][key]
     },
     set: function proxySetter(val) {
+      // 这里修改 vm[key] 实际上是修改了 this['_data'][key]
       this[sourceKey][key] = val
     }
   })

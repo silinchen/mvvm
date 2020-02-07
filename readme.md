@@ -41,6 +41,14 @@ Object.defineProperty(obj, 'vue', {
 
 ### 3. 流程图
 
+![流程图](https://github.com/silinchen/mvvm/blob/master/img/mvvm.png)
+
+### 4. 流程分析
+
+这里我们先看看代码实现，大概了解一下整个过程，最后再对整个过程进行分析。
+
+结合代码、注释、过程分析可以更好的理解整个过程。
+
 
 
 ## 二、开始实现
@@ -104,18 +112,19 @@ Compile.prototype = {
   },
   compile: function (el) {
     const childNodes = el.childNodes
-
+    // childNodes 不是标准数组，通过 Array.from 把 childNodes 转成数组并遍历处理每一个节点。
     Array.from(childNodes).forEach(node => {
+      // 利用闭包机制，保存文本节点最初的文本，后面更新根据最初的文本进行替换更新。
       const text = node.textContent;
-			// 元素节点
+      // 元素节点，对元素属性绑定对指令进行处理
       if (this.isElementNode(node)) {
         this.compileElement(node);
       }
-      // 文本节点，并且有 {{}} 模版字符串
+      // 文本节点并且包含 {{xx}} 字符串对文本，模版内容替换
       else if (this.isTextNode(node) && /\{\{(.*)\}\}/.test(text)) {
-        this.compileText(node, RegExp.$1.trim());
+        this.compileText(node, RegExp.$1.trim(), text);
       }
-			// 递归编译元素子节点
+      // 递归编译子节点的内容
       if (node.childNodes && node.childNodes.length) {
         this.compile(node);
       }
@@ -127,6 +136,7 @@ Compile.prototype = {
 
     Array.from(nodeAttrs).forEach(attr => {
       const attrName = attr.name;
+      // 判断属性是否是一个指令，例如： v-text 等
       if (this.isDirective(attrName)) {
         const exp = attr.value;
         const dir = attrName.substring(2);
@@ -138,7 +148,6 @@ Compile.prototype = {
         else {
           compileUtil[dir] && compileUtil[dir](node, this.$vm, exp);
         }
-
         node.removeAttribute(attrName);
       }
     });
@@ -187,7 +196,9 @@ const compileUtil = {
   },
 	... // 省略
   update: function (node, vm, exp, dir) {
+    // 针对不同的指令使用不同的函数渲染、更新数据。
     const updaterFn = updater[dir + 'Updater'];
+    // 这里取值，然后进行初次的内容渲染
     updaterFn && updaterFn(node, this._getVMVal(vm, exp));
     new Watcher(vm, exp, function (value, oldValue) {
       updaterFn && updaterFn(node, value, oldValue);
@@ -262,25 +273,28 @@ function initData(vm) {
 
 ####  proxy
 
-把每一个值 `vm._data.xxx` 都代理到 `vm.xxx` 上
+把每一个值 `vm._data.xxx` 都代理到 `vm.xxx` 上。
+
+这是一个公用的方法。这里我们只是对 data 定义对属性做里代理。实际上 vue 还通过这个方法对 props 也做了代理，`proxy(vm, '_props', key)`
 
 ````javascript
-// 数据代理
+// 数据代理，proxy(vm, '_data', key)。
 function proxy(target, sourceKey, key) {
   Object.defineProperty(target, key, {
     enumerable: true,
     configurable: true,
     get: function proxyGetter() {
+      // initData 里把 vm._data 处理成响应式对象。
+      // 这里返回 this['_data'][key]，实现 vm[key] -> vm._data[key]
       return this[sourceKey][key]
     },
     set: function proxySetter(val) {
+      // 这里修改 vm[key] 实际上是修改了 this['_data'][key]
       this[sourceKey][key] = val
     }
   })
 }
 ````
-
-
 
 #### observe
 
@@ -320,53 +334,41 @@ class Observer {
 `defineReactive` 的功能就是定义一个响应式对象，给对象动态添加 getter 和 setter，getter 做的事情是依赖收集，setter 做的事情是派发更新。
 
 ```javascript
-function defineReactive (obj, key, val) {
+function defineReactive (obj, key) {
 	// 初始化 Dep，用于依赖收集
   const dep = new Dep()
 
-  const property = Object.getOwnPropertyDescriptor(obj, key)
-  if (property && property.configurable === false) {
-    return
-  }
+  let val = obj[key]
 
-  // cater for pre-defined getter/setters
-  const getter = property && property.get
-  const setter = property && property.set
-  if ((!getter || setter) && arguments.length === 2) {
-    val = obj[key]
-  }
-
-	// 对子对象递归调用 observe 方法，这样就保证了无论 obj 的结构多复杂，它的所有子属性也能变成响应式的对象，这样我们访问或修改 obj 中一个嵌套较深的属性，也能触发 getter 和 setter
+	// 对子对象递归调用 observe 方法，这样就保证了无论 obj 的结构多复杂，
+  // 它的所有子属性也能变成响应式的对象，
+  // 这样我们访问或修改 obj 中一个嵌套较深的属性，也能触发 getter 和 setter。
+  // 使 foo.bar 等多层的对象也可以实现响应式。
   let childOb = observe(val)
   // Object.defineProperty 去给 obj 的属性 key 添加 getter 和 setter
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
     get: function reactiveGetter () {
-      const value = getter ? getter.call(obj) : val
+      // Dep.target 指向 watcher
       if (Dep.target) {
-        // 依赖收集
+        // 依赖收集，每个使用到 data 里的值的地方，都会调用一次 get，然后就会被收集到一个数组中。
         dep.depend()
         if (childOb) {
           childOb.dep.depend()
         }
       }
-      return value
+      return val
     },
     set: function reactiveSetter (newVal) {
-      const value = getter ? getter.call(obj) : val
-      if (newVal === value || (newVal !== newVal && value !== value)) {
+      // 当值没有变化时，直接返回
+      if (newVal === val) {
         return
       }
-      // #7981: for accessor properties without setter
-      if (getter && !setter) return
-      if (setter) {
-        setter.call(obj, newVal)
-      } else {
-        val = newVal
-      }
+      // 对 val 设置新的
+      val = newVal
+      // 如果新传入的值时一个对象，需要重新进行 observe，给对象的属性做响应式处理。
       childOb = observe(newVal)
-      // 派发更新
       dep.notify()
     }
   })
@@ -385,7 +387,7 @@ function defineReactive (obj, key, val) {
 class Dep {
   static target;
   constructor () {
-    // 存放 watcher
+    // 存放 watcher 的地方
     this.subs = []
   }
 
@@ -398,7 +400,7 @@ class Dep {
       Dep.target.addDep(this)
     }
   }
-
+	// 派发更新
   notify () {
     // stabilize the subscriber list first
     const subs = this.subs.slice()
@@ -420,38 +422,43 @@ class Watcher {
     this.cb = cb
     this.expOrFn = expOrFn;
     this.depIds = {};
+    // 判断 expOrFn 是不是一个函数，如果不是函数会通过 parsePath 把它变成一个函数。
     if (typeof expOrFn === 'function') {
       this.getter = expOrFn
     } else {
+      // parsePath 把 expOrFn 变成一个函数
       this.getter = parsePath(expOrFn) || function noop (a, b, c) {}
     }
+    // 取值，触发依赖收集。
     this.value = this.get()
   }
   get() {
+    // 这里 Dep.target 指向 watcher 本身，然后会取值，取值触发对应属性的 getter 方法。
+    // 此时 getter 方法里面使用的 Dep.target 就有值了。
+    // 通过一系列的代码执行 dep.depend() -> Dep.target.addDep(dep) -> dep.addSub(watcher) 
+    // 最后把 watcher 存到 subs 数组里，完成依赖收集。
+    // 最后把 Dep.target 删除，保证来 Dep.target 在同一时间内只有唯一一个。
     Dep.target = this;
     const vm = this.vm
-    // 这里的 getter 是
     let value = this.getter.call(vm, vm)
     Dep.target = null;
     return value
   }
-  // 在触发 getter 的时候会调用 dep.depend() 方法，也就会执行 Dep.target.addDep(this)
   addDep(dep) {
     if (!this.depIds.hasOwnProperty(dep.id)) {
       dep.addSub(this);
       this.depIds[dep.id] = dep;
     }
   }
-  // 在派发更新的时候会调用这个
   update() {
-    this.run()
-  }
-  // 
-  run() {
+    // this.value 是 watcher 缓存的值，用来与改变后的值进行对比，如果前后值没有变化，就不进行更新。
     const value = this.get()
     const oldValue = this.value
     if (value !== oldValue) {
+      // 缓存新的值，下次操作用
       this.value = value
+      // 以 vm 为 cb 的 this 值，调用 cb。
+      // cb 就是 在 new watcher 使传入的更新函数。会把新的值传入通过更新函数，更新到视图上。
       this.cb.call(this.vm, value, oldValue)
     }
   }
@@ -460,9 +467,20 @@ class Watcher {
 
 
 
+### 三、过程分析
 
-
-
-
-
+1. `new MVVM()` 的时候，首先，会对 `data`、`props` 、`computed` 进行初始化，使它们变成响应式的对象。
+2. 响应式是通过使用 `Object.defineProperty` 给对象的属性设置 `get`、`set`，为属性提供 getter、setter 方法，一旦对象拥有了 getter 和 setter，我们可以简单地把这个对象称为响应式对象。。
+3. 当我们访问了该属性的时候会触发 getter 方法，当我们对该属性做修改的时候会触发 setter 方法。
+4. 在 getter 方法里做依赖的收集。因为在使用属性的时候，就会触发 getter，这时就会把这个使用记录起来，后面属性有改动的时候，就会根据这个收集的记录进行更新。
+5. 在 setter 方法里做派发更新。因为在对属性做修改的时候会触发这个setter，这时就可以根据之前在 getter 里面收集的记录，去做对应的更新。
+6. getter 的实现中，是通过 `Dep` 实现依赖收集的。getter 方法中调用了 `Dep.depend()` 进行收集，`Dep.depend()` 中又调用了 `Dep.target.addDep(this) ` 。
+7. 这里 `Dep.target` 是个非常巧妙的设计，因为在同一时间 `Dep.target` 只指向一个 `Watcher`，使得同一时间内只能有一个全局的 `Watcher` 被计算。
+8. `Dep.target.addDep(this)` 等于调用 `Watcher.addDep(dep)` ，里面又调用了 `dep.addSub(this)` 把这个全局唯一的 watcher 添加到 `dep.subs` 数组中，收集了起来，并且 watcher 本身也通过 `depIds` 收集持有的 `Dep` 实例。
+9. 上面只是定义了一个流程，但是需要访问数据对象才能触发 getter 使这个流程运转起来。那什么时候触发呢？
+10. Vue 会通过 `compile` 把模版编译成 `render` 函数，并在 `render` 函数中访问数据对象触发 getter。这里我们是直接在 `compile` 的时候访问数据对象触发 getter。
+11. `compile` 负责内容的渲染与数据更新。`compile` 编译模版中的内容，把模版中的 {{xx}} 字符串替换成对应的属性值时会访问数据对象触发 getter，不过此时还没有 `watcher`，没有依赖收集。
+12. `compile` 接下来会实例化 `Watcher`，实例化过程会再去取一次值，此时触发到 getter 才会进行依赖收集。具体看 `Watcher` 的 构造函数与 get 方法实现。
+13. 到这里，页面渲染完成，依赖收集也完成。
+14. 接下来会监控数据的变化，数据如果发生变化，就会触发属性值的 setter 方法，setter 方法除了把值设置为新的值之外，还会进行派发更新。执行 `dep.notify()`，循环调用 `subs` 里面保存的 `watcher` 的 `update` 方法进行更新。
 
